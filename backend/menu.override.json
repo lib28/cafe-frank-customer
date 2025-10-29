@@ -1,0 +1,42 @@
+{
+  "categories": [
+    {
+      "id": "breakfast",
+      "name": "Breakfast",
+      "items": [
+        { "id": "croissant-coffee", "name": "Croissant & Coffee", "desc": "Butter croissant + flat white", "price": 55 },
+        { "id": "avo-toast", "name": "Avocado Toast", "desc": "Sourdough, smashed avo, chilli", "price": 65 }
+      ]
+    },
+    {
+      "id": "lunch",
+      "name": "Lunch",
+      "items": [
+        { "id": "chicken-bowl", "name": "Grilled Chicken Bowl", "desc": "Brown rice & greens", "price": 95 },
+        { "id": "brisket-roll", "name": "Beef Brisket Roll", "desc": "Pickles & mustard", "price": 98 }
+      ]
+    },
+    {
+      "id": "sandwiches",
+      "name": "Sandwiches",
+      "items": [
+        { "id": "frank-reuben", "name": "Frank Reuben", "desc": "Pastrami, sauerkraut, swiss", "price": 110 }
+      ]
+    },
+    {
+      "id": "beverages",
+      "name": "Beverages",
+      "items": [
+        { "id": "flat-white", "name": "Flat White", "desc": "Double shot", "price": 34 },
+        { "id": "iced-latte", "name": "Iced Latte", "desc": "", "price": 45 }
+      ]
+    },
+    {
+      "id": "desserts",
+      "name": "Desserts",
+      "items": [
+        { "id": "brownie", "name": "Chocolate Brownie", "desc": "Rich & fudgy", "price": 48 }
+      ]
+    }
+  ]
+}
