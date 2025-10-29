@@ -1,106 +1,99 @@
-// backend/server.js (CommonJS)
-const express = require("express");
-const cors = require("cors");
+// backend/server.js
+const express = require('express');
+const cors = require('cors');
 
 const app = express();
-
-// --- middleware ---
-app.use(cors({ origin: true }));
+app.use(cors());
 app.use(express.json());
 
-// --- health ---
-app.get("/health", (req, res) => {
-  res.json({ ok: true, status: "ok", time: new Date().toISOString() });
+// ---- Health ----
+app.get('/', (_req, res) => res.json({ ok: true, service: 'Cafe Frank API' }));
+app.get('/health', (_req, res) => res.json({ ok: true, status: 'ok', time: new Date().toISOString() }));
+
+// ---- Demo data ----
+let user = { name: 'Guest', phone: '', address: '', lat: null, lng: null, deliveryPreference: 'delivery', payment: {} };
+
+const menu = {
+  categories: [
+    { id: 'coffee', name: 'Coffee', items: [
+      { id: 'americano', name: 'Americano', description: 'Double shot', price: 28 },
+      { id: 'flatwhite', name: 'Flat White', description: 'Velvety microfoam', price: 34 }
+    ]},
+    { id: 'bakery', name: 'Bakery', items: [
+      { id: 'croissant', name: 'Butter Croissant', description: 'Fresh, flaky', price: 30 }
+    ]}
+  ]
+};
+
+let drivers = [
+  { id: 'drv_1', name: 'Sam',  phone: '+27 82 000 0001', vehicle: 'Scooter',  status: 'available',  lat: -33.9245, lng: 18.4203, etaMins: null },
+  { id: 'drv_2', name: 'Lebo', phone: '+27 83 000 0002', vehicle: 'Bike',     status: 'delivering', lat: -33.9221, lng: 18.4162, etaMins: 8 }
+];
+
+// ---- Public endpoints (no prefix) ----
+app.get('/menu', (_req, res) => res.json(menu));
+
+// Geo stubs (for Profile screen address search/reverse)
+app.get('/geo/search', (req, res) => {
+  const q = String(req.query.q || '').toLowerCase();
+  const results = [
+    { label: 'Café Frank, Bree St, Cape Town', lat: -33.9206, lng: 18.4174 },
+    { label: 'Greenmarket Square, Cape Town',  lat: -33.9243, lng: 18.4196 }
+  ].filter(r => r.label.toLowerCase().includes(q));
+  res.json({ results });
+});
+app.get('/geo/reverse', (req, res) => {
+  const { lat, lng } = req.query;
+  res.json({ label: `Pinned @ ${lat}, ${lng}` });
 });
 
-// --- demo menu (adjust to real data later) ---
-app.get(["/api/menu", "/menu"], (req, res) => {
-  res.json({
-    categories: [
-      {
-        id: "coffee",
-        name: "Coffee",
-        items: [
-          { id: "americano", name: "Americano", description: "Double shot", price: 28 },
-          { id: "flatwhite", name: "Flat White", description: "Velvety microfoam", price: 34 }
-        ]
-      },
-      {
-        id: "bakery",
-        name: "Bakery",
-        items: [{ id: "croissant", name: "Butter Croissant", description: "Fresh, flaky", price: 30 }]
-      }
-    ]
-  });
+// Profile (support many paths your app tries)
+const getMe  = (_req, res) => res.json(user);
+const putMe  = (req, res) => { user = { ...user, ...(req.body || {}) }; res.json(user); };
+const postMe = (req, res) => { user = { ...user, ...(req.body || {}) }; res.status(201).json(user); };
+
+app.get(['/user', '/users/me', '/user/me', '/profile', '/me'], getMe);
+app.put(['/users/me', '/user/me', '/profile', '/me'], putMe);
+app.post(['/users', '/user', '/profile'], postMe);
+
+// Orders
+app.post('/orders', (req, res) => {
+  const orderId = 'ord_' + Date.now();
+  res.status(201).json({ id: orderId, orderId, ...req.body });
 });
 
-// --- USERS (in-memory demo store) ---
-let USER = { id: "demo", name: "Guest", phone: "", address: "", lat: null, lng: null, deliveryPreference: "delivery", notes: "", payment: {} };
-
-// canonical
-app.get("/api/user", (req, res) => res.json(USER));
-app.put("/api/user", (req, res) => { USER = { ...USER, ...(req.body || {}) }; res.json(USER); });
-app.post("/api/user", (req, res) => { USER = { ...USER, ...(req.body || {}) }; res.status(201).json(USER); });
-
-// aliases to satisfy any fallbacks
-app.get(["/api/users/me", "/api/profile", "/api/me", "/user", "/user/me", "/users/me", "/profile"], (r, s) => s.json(USER));
-app.put(["/api/users/me", "/api/profile", "/api/me", "/user", "/user/me", "/profile", "/me"], (r, s) => { USER = { ...USER, ...(r.body || {}) }; s.json(USER); });
-app.post(["/api/users", "/profile", "/user"], (r, s) => { USER = { ...USER, ...(r.body || {}) }; s.status(201).json(USER); });
-
-// --- ORDERS (demo) ---
-app.post(["/api/orders", "/api/order", "/orders", "/order"], (req, res) => {
-  const { lines = [], customer = {}, delivery = {}, notes = "" } = req.body || {};
-  if (!Array.isArray(lines) || !lines.length) return res.status(400).json({ error: "Empty cart" });
-  const orderId = "ord_" + Math.random().toString(36).slice(2, 9);
-  console.log("New order", { orderId, lines, customer, delivery, notes });
-  res.status(201).json({ orderId });
+// ---- Drivers (root) ----
+app.get('/drivers', (_req, res) => res.json(drivers));
+app.post(['/drivers/inbox', '/drivers/queue', '/driver/inbox', '/drivers/demo/enqueue'], (req, res) => {
+  const job = req.body || {};
+  const free = drivers.find(d => d.status === 'available');
+  if (free) { free.status = 'delivering'; free.etaMins = Math.max(5, Math.round((job.total || 0) / 50) + 5); }
+  console.log('Driver enqueue:', job);
+  res.json({ ok: true });
 });
 
-// --- DRIVERS enqueue (no-op) ---
-app.post(["/api/drivers/inbox", "/api/drivers/queue", "/api/driver/inbox", "/drivers/inbox", "/drivers/queue", "/driver/inbox", "/api/drivers/demo/enqueue", "/drivers/demo/enqueue"], (req, res) => {
-  console.log("Driver enqueue", req.body);
-  res.status(204).end();
-});
+// ---- Optional /api mirror ----
+const api = express.Router();
+api.get('/health', (_req, res) => res.json({ ok: true, tag: 'api', time: new Date().toISOString() }));
+api.get('/menu', (_req, res) => res.json(menu));
+api.get('/user', getMe);
+api.put('/user', putMe);
+api.post('/user', postMe);
+api.get('/drivers', (_req, res) => res.json(drivers));
+api.post('/orders', (req, res) => res.status(201).json({ id: 'ord_' + Date.now(), ...req.body }));
+app.use('/api', api);
 
-// --- GEO via OpenStreetMap Nominatim ---
-async function nominatim(url) {
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent": "CafeFrankApp/1.0 (contact: cafefrank@example.com)",
-      "Accept": "application/json"
+// Optional: list routes for quick debugging
+app.get('/__routes', (_req, res) => {
+  const routes = [];
+  app._router.stack.forEach(layer => {
+    if (layer.route && layer.route.path) {
+      routes.push({ methods: Object.keys(layer.route.methods), path: layer.route.path });
     }
   });
-  if (!res.ok) throw new Error(`Nominatim ${res.status} ${res.statusText}`);
-  return await res.json();
-}
-
-app.get(["/api/geo/search", "/geo/search"], async (req, res) => {
-  try {
-    const q = String(req.query.q || "").trim();
-    if (!q || q.length < 2) return res.json({ results: [] });
-    const limit = Math.min(Number(req.query.limit || 5), 10);
-    const data = await nominatim(`https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=${limit}&q=${encodeURIComponent(q)}`);
-    const results = (Array.isArray(data) ? data : []).map(x => ({ label: x.display_name, lat: Number(x.lat), lng: Number(x.lon) }));
-    res.json({ results });
-  } catch (e) {
-    console.error("geo/search error:", e.message);
-    res.json({ results: [] });
-  }
+  res.json({ routes });
 });
 
-app.get(["/api/geo/reverse", "/geo/reverse"], async (req, res) => {
-  try {
-    const lat = Number(req.query.lat);
-    const lon = Number(req.query.lng ?? req.query.lon);
-    if (!isFinite(lat) || !isFinite(lon)) return res.json({ label: "" });
-    const data = await nominatim(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${lat}&lon=${lon}`);
-    res.json({ label: data.display_name || "" });
-  } catch (e) {
-    console.error("geo/reverse error:", e.message);
-    res.json({ label: "" });
-  }
-});
-
-// --- listen on Render port ---
+// ---- Start ----
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Cafe Frank API listening on :${PORT}`));
